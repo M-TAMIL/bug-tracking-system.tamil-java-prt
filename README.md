@@ -190,6 +190,125 @@ git push -u origin main
 
 ---
 
-## 🔮 Next Steps (Day 2 Preview)
-* Implement DAO interfaces (`UserDAO`, `ProjectDAO`, `BugDAO`, `BugCommentDAO`).
-* Implement JDBC CRUD operations with `PreparedStatement` to safely interact with MySQL.
+## 🚀 Day 2 Progress Checklist (User & Project Management)
+
+- [x] Enhanced `User` model with 5-field constructor (`id`, `name`, `email`, `password`, `role`) and dual `getName()` / `getUsername()` accessors.
+- [x] Created `UserDAO` interface and JDBC implementation `UserDAOImpl`:
+  - `addUser(User user)`: Adds new user and returns generated ID.
+  - `getAllUsers()`: Retrieves all registered users.
+  - `getUserById(int id)`: Finds user by primary key ID.
+  - `updateUser(User user)`: Updates user details.
+  - `deleteUser(int id)`: Deletes user by ID.
+- [x] Enhanced `Project` model with 4-field constructor (`id`, `name`, `description`, `createdBy`).
+- [x] Created `ProjectDAO` interface and JDBC implementation `ProjectDAOImpl`:
+  - `addProject(Project project)`: Adds new project with relational creator FK.
+  - `getAllProjects()`: Retrieves all registered projects.
+  - `getProjectById(int id)`: Finds project by primary key ID.
+  - `updateProject(Project project)`: Updates project name, description, or creator.
+  - `deleteProject(int id)`: Deletes project by ID.
+- [x] Updated `Main.java` with automated CRUD verification suite for both UserDAO and ProjectDAO.
+
+---
+
+## 💻 How to Run & Test Day 2
+
+### 1. Using Maven (Recommended)
+```bash
+mvn compile exec:java
+```
+
+### 2. Using IDE
+Open the project in VS Code, IntelliJ IDEA, or Eclipse, navigate to `src/main/java/com/bugtracker/Main.java`, and click **Run**.
+
+### Sample Output (Live Database):
+```text
+==================================================================
+                   BUG TRACKING SYSTEM                            
+           Day 2: User & Project Management (CRUD)                
+==================================================================
+Technologies: Java 17+, Maven, MySQL, JDBC
+Architecture: Layered (model, dao, service, util, ui)
+
+[STEP 1] Testing Database Connection...
+  [OK] Successfully connected to MySQL database: bug_tracking_db
+
+==================================================================
+                 [USER MANAGEMENT - CRUD DEMO]                    
+==================================================================
+
+--- 1. Add User ---
+User added: SUCCESS (Generated ID: 4)
+
+--- 2. View All Users ---
+ID    | Name/Username      | Email                     | Role        
+------------------------------------------------------------------
+1     | admin_user         | admin@bugtracker.com      | ADMIN       
+2     | john_dev           | john@bugtracker.com       | DEVELOPER   
+3     | sarah_qa           | sarah@bugtracker.com      | TESTER      
+4     | test_dev_1234      | test_dev_1234@example.com | DEVELOPER   
+
+--- 3. Find User By ID (4) ---
+Found: User{id=4, username='test_dev_1234', email='test_dev_1234@example.com', role=DEVELOPER, ...}
+
+--- 4. Update User ---
+User updated: SUCCESS
+Verified updated role: ADMIN
+
+--- 5. Delete User (4) ---
+User deleted: SUCCESS
+Post-delete check (should be null): null
+
+==================================================================
+                [PROJECT MANAGEMENT - CRUD DEMO]                  
+==================================================================
+
+--- 1. Add Project ---
+Project added: SUCCESS (Generated ID: 3)
+
+--- 2. View All Projects ---
+ID    | Name                     | Description                    | Created By
+------------------------------------------------------------------------------
+1     | E-Commerce Portal        | Online retail shopping webs... | 1         
+2     | Hospital Management      | Electronic medical records ... | 1         
+3     | AI Chatbot Engine        | Next-gen conversational AI ... | 1         
+
+--- 3. Find Project By ID (3) ---
+Found: Project{id=3, name='AI Chatbot Engine', description='Next-gen conversational AI service', createdBy=1, ...}
+
+--- 4. Update Project ---
+Project updated: SUCCESS
+Verified updated name: AI Chatbot Engine v2
+
+--- 5. Delete Project (3) ---
+Project deleted: SUCCESS
+Post-delete check (should be null): null
+
+==================================================================
+Day 2 Implementation Complete! (Ready for Day 3: Bug Management)  
+==================================================================
+```
+
+---
+
+## 📦 Git Commands to Commit and Push Day 2
+
+```bash
+# 1. Check changed files
+git status
+
+# 2. Stage all Day 2 additions and modifications
+git add .
+
+# 3. Commit with Day 2 commit message
+git commit -m "Day 2 - User and project management"
+
+# 4. Push to GitHub
+git push origin main
+```
+
+---
+
+## 🔮 Next Steps (Day 3 Preview)
+* Implement `BugDAO` and `BugCommentDAO` interfaces & JDBC implementations.
+* Support Bug reporting, severity levels, status transitions, and threaded comments.
+

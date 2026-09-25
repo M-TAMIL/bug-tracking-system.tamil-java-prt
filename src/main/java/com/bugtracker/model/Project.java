@@ -23,6 +23,14 @@ public class Project {
         this.createdBy = createdBy;
     }
 
+    // Constructor with 4 core fields (id, name, description, createdBy)
+    public Project(int id, String name, String description, Integer createdBy) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.createdBy = createdBy;
+    }
+
     // Full constructor (for reading from database)
     public Project(int id, String name, String description, Integer createdBy, Timestamp createdAt) {
         this.id = id;

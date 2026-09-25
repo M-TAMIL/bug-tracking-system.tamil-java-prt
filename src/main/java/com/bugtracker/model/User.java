@@ -25,6 +25,15 @@ public class User {
         this.role = role;
     }
 
+    // Constructor with 5 core fields (id, name, email, password, role)
+    public User(int id, String name, String email, String password, Role role) {
+        this.id = id;
+        this.username = name;
+        this.email = email;
+        this.password = password;
+        this.role = role;
+    }
+
     // Full constructor (for reading from database)
     public User(int id, String username, String email, String password, Role role, Timestamp createdAt) {
         this.id = id;
@@ -42,6 +51,15 @@ public class User {
 
     public void setId(int id) {
         this.id = id;
+    }
+
+    // Alias for name (satisfies Day 2 requirement while preserving Day 1 username)
+    public String getName() {
+        return username;
+    }
+
+    public void setName(String name) {
+        this.username = name;
     }
 
     public String getUsername() {
