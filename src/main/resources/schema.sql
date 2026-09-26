@@ -78,12 +78,30 @@ CREATE TABLE IF NOT EXISTS bug_comments (
 ) ENGINE=InnoDB;
 
 -- ----------------------------------------------------------------------------
+-- Table: bug_history
+-- Purpose: Audits lifecycle, assignment, and severity changes for bugs
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS bug_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    bug_id INT NOT NULL,
+    changed_by INT NULL,
+    action VARCHAR(40) NOT NULL,
+    details TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_history_bug FOREIGN KEY (bug_id)
+        REFERENCES bugs(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_history_user FOREIGN KEY (changed_by)
+        REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- ----------------------------------------------------------------------------
 -- Performance Indexes for Foreign Keys and Frequent Search Fields
 -- ----------------------------------------------------------------------------
 CREATE INDEX idx_bugs_status ON bugs(status);
 CREATE INDEX idx_bugs_severity ON bugs(severity);
 CREATE INDEX idx_bugs_project_id ON bugs(project_id);
 CREATE INDEX idx_comments_bug_id ON bug_comments(bug_id);
+CREATE INDEX idx_history_bug_id ON bug_history(bug_id);
 
 -- ----------------------------------------------------------------------------
 -- Sample Seed Data (For testing Day 1 setup)

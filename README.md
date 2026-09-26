@@ -6,7 +6,7 @@ A robust, enterprise-style Bug Tracking System application built using **Core Ja
 
 ## 📌 Project Objective
 
-The **Bug Tracking System** is designed to streamline software issue management. It allows developers, testers, and project managers to report, assign, track, update, and resolve software bugs across different projects with role-based access control and comment tracking.
+The **Bug Tracking System** is designed to streamline software issue management. It allows developers and testers to report, assign, track, update, and resolve software bugs across projects, discuss bugs with comments, and review an audit trail.
 
 ---
 
@@ -308,7 +308,97 @@ git push origin main
 
 ---
 
-## 🔮 Next Steps (Day 3 Preview)
-* Implement `BugDAO` and `BugCommentDAO` interfaces & JDBC implementations.
-* Support Bug reporting, severity levels, status transitions, and threaded comments.
+## Day 4: Bug Workflows, Comments, Dashboard, and Testing
+
+### Features
+
+- Bug create, list, read, update, and delete through JDBC.
+- Add and view bug comments. Authors may delete their own comments; a database-verified administrator may delete any comment.
+- Bug history records creation, status changes, developer assignments, severity/priority changes, resolution, and reopening. Bug updates and their audit events commit atomically.
+- Dashboard totals for all, open, in-progress, resolved, closed, and critical bugs.
+- Validation for required text, email format, positive IDs, status, and severity values.
+- Existing user and project CRUD DAOs remain available and now validate required fields and IDs.
+
+### Database Setup
+
+For a new database, execute `database/schema.sql` in MySQL. This creates the `bug_history` audit table in addition to the existing users, projects, bugs, and comments tables. Then configure the username and password in `src/main/resources/db.properties`.
+
+For an existing Day 3 database, apply this migration once:
+
+```sql
+USE bug_tracking_db;
+CREATE TABLE IF NOT EXISTS bug_history (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  bug_id INT NOT NULL,
+  changed_by INT NULL,
+  action VARCHAR(40) NOT NULL,
+  details TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_history_bug FOREIGN KEY (bug_id)
+    REFERENCES bugs(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_history_user FOREIGN KEY (changed_by)
+    REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+CREATE INDEX idx_history_bug_id ON bug_history(bug_id);
+```
+
+### How to Run
+
+```bash
+mvn test
+mvn compile exec:java
+```
+
+The Maven test command always runs offline validation tests. Set `BUGTRACKER_MYSQL_TESTS=true` to additionally run the destructive-cleanup MySQL integration workflow tests against the configured database (they create uniquely named fixtures and remove them afterward). In PowerShell:
+
+```powershell
+$env:BUGTRACKER_MYSQL_TESTS = "true"
+mvn test
+```
+
+At startup, the application verifies its MySQL connection and presents a menu for the dashboard, bug CRUD, comments, and history. Existing user/project CRUD methods remain available through their DAOs.
+
+### Sample Workflow
+
+1. Select `3` and report a bug with a title, description, severity, project ID, reporter ID, and optional developer ID.
+2. Select `6` to add a comment, then `7` to review discussion on the bug.
+3. Select `4` to assign a developer and change the status to `IN_PROGRESS`; the update is recorded in bug history.
+4. Update the bug to `RESOLVED`, then back to `IN_PROGRESS` to record resolution and reopening events.
+5. Select `9` to inspect the audit trail and `1` to review dashboard totals.
+
+### Sample Output
+
+```text
+--- Bug Dashboard ---
+Total bugs:       2
+Open:             1
+In progress:      1
+Resolved:         0
+Closed:           0
+Critical:         1
+
+1 Dashboard  2 List bugs  3 Report bug  4 Update bug
+5 Delete bug  6 Add comment  7 View comments  8 Delete comment
+9 Bug history  0 Exit
+Select:
+```
+
+Counts vary with the current contents of the database; the example matches the two initial sample bugs in a fresh setup.
+
+### Day 4 Progress
+
+- [x] Implement bug CRUD, comment DAO/model behavior, and permission-checked deletion.
+- [x] Record bug creation, status, assignment, severity, resolution, and reopening events transactionally.
+- [x] Add dashboard aggregates and the interactive console menu.
+- [x] Add input validation and unit/integration test coverage.
+- [x] Document setup, migration, execution, and a sample workflow.
+
+### Day 4 GitHub Push
+
+```bash
+git status
+git add .
+git commit -m "Day 4 - Comments, dashboard and testing"
+git push origin main
+```
 

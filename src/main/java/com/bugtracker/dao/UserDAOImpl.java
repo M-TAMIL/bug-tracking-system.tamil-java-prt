@@ -1,9 +1,5 @@
 package com.bugtracker.dao;
 
-import com.bugtracker.model.Role;
-import com.bugtracker.model.User;
-import com.bugtracker.util.DBConnection;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,6 +8,11 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.bugtracker.model.Role;
+import com.bugtracker.model.User;
+import com.bugtracker.util.DBConnection;
+import com.bugtracker.util.Validation;
 
 /**
  * JDBC implementation of UserDAO for MySQL database operations.
@@ -31,18 +32,15 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public boolean addUser(User user) {
-        if (user == null) {
-            System.err.println("[UserDAO] Cannot insert null user.");
-            return false;
-        }
+        if (!isValidUser(user)) return false;
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(INSERT_USER_SQL, Statement.RETURN_GENERATED_KEYS)) {
 
-            ps.setString(1, user.getUsername() != null ? user.getUsername() : user.getName());
-            ps.setString(2, user.getEmail());
+            ps.setString(1, user.getUsername() != null ? user.getUsername().trim() : user.getName().trim());
+            ps.setString(2, user.getEmail().trim());
             ps.setString(3, user.getPassword());
-            ps.setString(4, user.getRole() != null ? user.getRole().name() : Role.DEVELOPER.name());
+            ps.setString(4, user.getRole().name());
 
             int affectedRows = ps.executeUpdate();
             if (affectedRows > 0) {
@@ -78,6 +76,7 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public User getUserById(int id) {
+        if (id <= 0) return null;
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(SELECT_USER_BY_ID_SQL)) {
 
@@ -95,16 +94,13 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public boolean updateUser(User user) {
-        if (user == null || user.getId() <= 0) {
-            System.err.println("[UserDAO] Invalid user object or ID for update.");
-            return false;
-        }
+        if (!isValidUser(user) || user.getId() <= 0) return false;
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(UPDATE_USER_SQL)) {
 
-            ps.setString(1, user.getUsername() != null ? user.getUsername() : user.getName());
-            ps.setString(2, user.getEmail());
+            ps.setString(1, user.getUsername() != null ? user.getUsername().trim() : user.getName().trim());
+            ps.setString(2, user.getEmail().trim());
             ps.setString(3, user.getPassword());
             ps.setString(4, user.getRole() != null ? user.getRole().name() : Role.DEVELOPER.name());
             ps.setInt(5, user.getId());
@@ -118,6 +114,7 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public boolean deleteUser(int id) {
+        if (id <= 0) return false;
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(DELETE_USER_SQL)) {
 
@@ -138,5 +135,17 @@ public class UserDAOImpl implements UserDAO {
         Timestamp createdAt = rs.getTimestamp("created_at");
 
         return new User(id, username, email, password, role, createdAt);
+    }
+
+    private boolean isValidUser(User user) {
+        if (user == null || user.getRole() == null) return false;
+        try {
+            Validation.requireText(user.getUsername() != null ? user.getUsername() : user.getName(), "Username");
+            Validation.requireEmail(user.getEmail());
+            Validation.requireText(user.getPassword(), "Password");
+            return true;
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
     }
 }

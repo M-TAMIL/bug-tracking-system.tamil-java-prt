@@ -1,204 +1,198 @@
 package com.bugtracker;
 
-import com.bugtracker.dao.ProjectDAO;
-import com.bugtracker.dao.ProjectDAOImpl;
-import com.bugtracker.dao.UserDAO;
-import com.bugtracker.dao.UserDAOImpl;
-import com.bugtracker.model.Project;
-import com.bugtracker.model.Role;
-import com.bugtracker.model.User;
-import com.bugtracker.util.DBConnection;
-
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.List;
+import java.util.Scanner;
+
+import com.bugtracker.dao.BugCommentDAO;
+import com.bugtracker.dao.BugCommentDAOImpl;
+import com.bugtracker.dao.BugDAO;
+import com.bugtracker.dao.BugDAOImpl;
+import com.bugtracker.dao.BugHistoryDAO;
+import com.bugtracker.dao.BugHistoryDAOImpl;
+import com.bugtracker.dao.DashboardDAO;
+import com.bugtracker.dao.DashboardDAOImpl;
+import com.bugtracker.model.Bug;
+import com.bugtracker.model.BugComment;
+import com.bugtracker.model.BugHistory;
+import com.bugtracker.model.DashboardStats;
+import com.bugtracker.model.Severity;
+import com.bugtracker.model.Status;
+import com.bugtracker.util.DBConnection;
+import com.bugtracker.util.Validation;
 
 /**
- * Entry point for Bug Tracking System.
- * Day 2: User Management and Project Management CRUD Verification.
+ * Console entry point for bug tracking workflows.
  */
 public class Main {
 
     public static void main(String[] args) {
         printBanner();
-
-        // 1. Verify JDBC Connection
-        System.out.println("\n[STEP 1] Testing Database Connection...");
-        boolean isConnected = false;
         try (Connection conn = DBConnection.getConnection()) {
-            if (conn != null && !conn.isClosed()) {
-                isConnected = true;
-                System.out.println("  [OK] Successfully connected to MySQL database: " + conn.getCatalog());
-            }
+            System.out.println("Database connected: " + conn.getCatalog());
         } catch (SQLException e) {
-            System.err.println("  [NOTICE] Live database connection unavailable: " + e.getMessage());
-            System.err.println("  Ensure MySQL is running and credentials in 'src/main/resources/db.properties' are correct.");
+            System.err.println("Database connection failed: " + e.getMessage());
+            System.err.println("Set credentials in src/main/resources/db.properties and run database/schema.sql.");
+            return;
         }
-
-        if (isConnected) {
-            // Run live CRUD operations
-            testUserManagement();
-            testProjectManagement();
-        } else {
-            // Run offline demonstration so students see expected output and model integrity
-            runOfflineDemo();
-        }
-
-        printFooter();
+        runMenu(new Scanner(System.in));
     }
 
     private static void printBanner() {
         System.out.println("==================================================================");
         System.out.println("                   BUG TRACKING SYSTEM                            ");
-        System.out.println("           Day 2: User & Project Management (CRUD)                ");
+        System.out.println("        Day 4: Bugs, Comments, History & Dashboard                ");
         System.out.println("==================================================================");
         System.out.println("Technologies: Java 17+, Maven, MySQL, JDBC");
         System.out.println("Architecture: Layered (model, dao, service, util, ui)");
     }
 
-    private static void testUserManagement() {
-        System.out.println("\n==================================================================");
-        System.out.println("                 [USER MANAGEMENT - CRUD DEMO]                    ");
-        System.out.println("==================================================================");
-
-        UserDAO userDAO = new UserDAOImpl();
-
-        // 1. ADD USER
-        System.out.println("\n--- 1. Add User ---");
-        String uniqueName = "test_dev_" + (System.currentTimeMillis() % 10000);
-        User newUser = new User(uniqueName, uniqueName + "@example.com", "Pass@123", Role.DEVELOPER);
-        boolean added = userDAO.addUser(newUser);
-        System.out.println("User added: " + (added ? "SUCCESS (Generated ID: " + newUser.getId() + ")" : "FAILED"));
-
-        // 2. VIEW ALL USERS
-        System.out.println("\n--- 2. View All Users ---");
-        List<User> users = userDAO.getAllUsers();
-        System.out.printf("%-5s | %-18s | %-25s | %-12s%n", "ID", "Name/Username", "Email", "Role");
-        System.out.println("------------------------------------------------------------------");
-        for (User u : users) {
-            System.out.printf("%-5d | %-18s | %-25s | %-12s%n",
-                    u.getId(), u.getName(), u.getEmail(), u.getRole());
-        }
-
-        // 3. FIND USER BY ID
-        if (newUser.getId() > 0) {
-            System.out.println("\n--- 3. Find User By ID (" + newUser.getId() + ") ---");
-            User found = userDAO.getUserById(newUser.getId());
-            if (found != null) {
-                System.out.println("Found: " + found);
-            } else {
-                System.out.println("User not found.");
+    private static void runMenu(Scanner scanner) {
+        BugDAO bugDAO = new BugDAOImpl();
+        BugCommentDAO commentDAO = new BugCommentDAOImpl();
+        BugHistoryDAO historyDAO = new BugHistoryDAOImpl();
+        DashboardDAO dashboardDAO = new DashboardDAOImpl();
+        boolean running = true;
+        while (running) {
+            System.out.println("\n1 Dashboard  2 List bugs  3 Report bug  4 Update bug");
+            System.out.println("5 Delete bug  6 Add comment  7 View comments  8 Delete comment");
+            System.out.println("9 Bug history  0 Exit");
+            try {
+                switch (readInt(scanner, "Select: ")) {
+                    case 1 -> printDashboard(dashboardDAO.getStats());
+                    case 2 -> bugDAO.getAllBugs().forEach(System.out::println);
+                    case 3 -> reportBug(scanner, bugDAO);
+                    case 4 -> updateBug(scanner, bugDAO);
+                    case 5 -> deleteBug(scanner, bugDAO);
+                    case 6 -> addComment(scanner, bugDAO, commentDAO);
+                    case 7 -> viewComments(scanner, bugDAO, commentDAO);
+                    case 8 -> deleteComment(scanner, commentDAO);
+                    case 9 -> viewHistory(scanner, bugDAO, historyDAO);
+                    case 0 -> running = false;
+                    default -> System.out.println("Choose a menu option from 0 to 9.");
+                }
+            } catch (IllegalArgumentException exception) {
+                System.out.println("Invalid input: " + exception.getMessage());
             }
+        }
+        System.out.println("Bug Tracking System closed.");
+    }
 
-            // 4. UPDATE USER
-            System.out.println("\n--- 4. Update User ---");
-            found.setRole(Role.ADMIN);
-            found.setEmail("updated_" + newUser.getEmail());
-            boolean updated = userDAO.updateUser(found);
-            System.out.println("User updated: " + (updated ? "SUCCESS" : "FAILED"));
-            User recheck = userDAO.getUserById(found.getId());
-            System.out.println("Verified updated role: " + (recheck != null ? recheck.getRole() : "N/A"));
+    private static void printDashboard(DashboardStats stats) {
+        System.out.println("\n--- Bug Dashboard ---");
+        System.out.println("Total bugs:       " + stats.getTotalBugs());
+        System.out.println("Open:             " + stats.getOpenBugs());
+        System.out.println("In progress:      " + stats.getInProgressBugs());
+        System.out.println("Resolved:         " + stats.getResolvedBugs());
+        System.out.println("Closed:           " + stats.getClosedBugs());
+        System.out.println("Critical:         " + stats.getCriticalBugs());
+    }
 
-            // 5. DELETE USER
-            System.out.println("\n--- 5. Delete User (" + newUser.getId() + ") ---");
-            boolean deleted = userDAO.deleteUser(newUser.getId());
-            System.out.println("User deleted: " + (deleted ? "SUCCESS" : "FAILED"));
-            User deletedCheck = userDAO.getUserById(newUser.getId());
-            System.out.println("Post-delete check (should be null): " + deletedCheck);
+    private static void reportBug(Scanner scanner, BugDAO bugDAO) {
+        String title = readRequiredText(scanner, "Title: ", "Title");
+        String description = readRequiredText(scanner, "Description: ", "Description");
+        Severity severity = Validation.parseSeverity(readRequiredText(scanner,
+                "Severity (LOW, MEDIUM, HIGH, CRITICAL): ", "Severity"));
+        int projectId = readPositiveId(scanner, "Project ID: ");
+        int reporterId = readPositiveId(scanner, "Reporter user ID: ");
+        String assigned = readLine(scanner, "Developer ID (blank for unassigned): ").trim();
+        Integer assignedTo = assigned.isEmpty() ? null : Validation.requirePositiveId(parseInt(assigned), "Developer ID");
+        Bug bug = new Bug(title, description, severity, Status.OPEN, projectId, reporterId, assignedTo);
+        System.out.println(bugDAO.addBug(bug) ? "Bug reported with ID " + bug.getId() : "Bug was not saved.");
+    }
+
+    private static void updateBug(Scanner scanner, BugDAO bugDAO) {
+        int bugId = readPositiveId(scanner, "Bug ID: ");
+        Bug bug = bugDAO.getBugById(bugId);
+        if (bug == null) {
+            System.out.println("Bug not found.");
+            return;
+        }
+        int changedBy = readPositiveId(scanner, "Your user ID: ");
+        String status = readLine(scanner, "Status (blank keeps " + bug.getStatus() + "): ").trim();
+        String severity = readLine(scanner, "Severity (blank keeps " + bug.getSeverity() + "): ").trim();
+        String developer = readLine(scanner, "Developer ID (blank keeps current, 0 unassigns): ").trim();
+        if (!status.isEmpty()) bug.setStatus(Validation.parseStatus(status));
+        if (!severity.isEmpty()) bug.setSeverity(Validation.parseSeverity(severity));
+        if (!developer.isEmpty()) {
+            int developerId = parseInt(developer);
+            bug.setAssignedTo(developerId == 0 ? null : Validation.requirePositiveId(developerId, "Developer ID"));
+        }
+        System.out.println(bugDAO.updateBug(bug, changedBy) ? "Bug updated." : "Bug was not updated.");
+    }
+
+    private static void deleteBug(Scanner scanner, BugDAO bugDAO) {
+        int bugId = readPositiveId(scanner, "Bug ID: ");
+        String confirm = readLine(scanner, "Delete bug " + bugId + " and its comments/history? (yes/no): ");
+        if ("yes".equalsIgnoreCase(confirm.trim())) {
+            System.out.println(bugDAO.deleteBug(bugId) ? "Bug deleted." : "Bug was not deleted.");
+        } else {
+            System.out.println("Deletion cancelled.");
         }
     }
 
-    private static void testProjectManagement() {
-        System.out.println("\n==================================================================");
-        System.out.println("                [PROJECT MANAGEMENT - CRUD DEMO]                  ");
-        System.out.println("==================================================================");
-
-        ProjectDAO projectDAO = new ProjectDAOImpl();
-        UserDAO userDAO = new UserDAOImpl();
-
-        // Find a valid user to associate as creator
-        List<User> existingUsers = userDAO.getAllUsers();
-        Integer creatorId = existingUsers.isEmpty() ? null : existingUsers.get(0).getId();
-
-        // 1. ADD PROJECT
-        System.out.println("\n--- 1. Add Project ---");
-        Project newProject = new Project("AI Chatbot Engine", "Next-gen conversational AI service", creatorId);
-        boolean added = projectDAO.addProject(newProject);
-        System.out.println("Project added: " + (added ? "SUCCESS (Generated ID: " + newProject.getId() + ")" : "FAILED"));
-
-        // 2. VIEW ALL PROJECTS
-        System.out.println("\n--- 2. View All Projects ---");
-        List<Project> projects = projectDAO.getAllProjects();
-        System.out.printf("%-5s | %-24s | %-30s | %-10s%n", "ID", "Name", "Description", "Created By");
-        System.out.println("------------------------------------------------------------------------------");
-        for (Project p : projects) {
-            String desc = p.getDescription() != null && p.getDescription().length() > 28
-                    ? p.getDescription().substring(0, 25) + "..."
-                    : p.getDescription();
-            System.out.printf("%-5d | %-24s | %-30s | %-10s%n",
-                    p.getId(), p.getName(), desc, p.getCreatedBy());
+    private static void addComment(Scanner scanner, BugDAO bugDAO, BugCommentDAO commentDAO) {
+        int bugId = readPositiveId(scanner, "Bug ID: ");
+        if (bugDAO.getBugById(bugId) == null) {
+            System.out.println("Bug not found.");
+            return;
         }
+        int userId = readPositiveId(scanner, "Your user ID: ");
+        String text = readRequiredText(scanner, "Comment: ", "Comment");
+        BugComment comment = new BugComment(bugId, userId, text);
+        System.out.println(commentDAO.addComment(comment) ? "Comment added with ID " + comment.getId() : "Comment was not saved.");
+    }
 
-        // 3. FIND PROJECT BY ID
-        if (newProject.getId() > 0) {
-            System.out.println("\n--- 3. Find Project By ID (" + newProject.getId() + ") ---");
-            Project found = projectDAO.getProjectById(newProject.getId());
-            if (found != null) {
-                System.out.println("Found: " + found);
-            } else {
-                System.out.println("Project not found.");
-            }
+    private static void viewComments(Scanner scanner, BugDAO bugDAO, BugCommentDAO commentDAO) {
+        int bugId = readPositiveId(scanner, "Bug ID: ");
+        if (bugDAO.getBugById(bugId) == null) {
+            System.out.println("Bug not found.");
+            return;
+        }
+        commentDAO.getCommentsForBug(bugId).forEach(System.out::println);
+    }
 
-            // 4. UPDATE PROJECT
-            System.out.println("\n--- 4. Update Project ---");
-            found.setName("AI Chatbot Engine v2");
-            found.setDescription("Updated high-throughput conversational AI microservice");
-            boolean updated = projectDAO.updateProject(found);
-            System.out.println("Project updated: " + (updated ? "SUCCESS" : "FAILED"));
-            Project recheck = projectDAO.getProjectById(found.getId());
-            System.out.println("Verified updated name: " + (recheck != null ? recheck.getName() : "N/A"));
+    private static void deleteComment(Scanner scanner, BugCommentDAO commentDAO) {
+        int commentId = readPositiveId(scanner, "Comment ID: ");
+        int userId = readPositiveId(scanner, "Your user ID: ");
+        System.out.println(commentDAO.deleteComment(commentId, userId)
+                ? "Comment deleted." : "Not permitted, or comment not found.");
+    }
 
-            // 5. DELETE PROJECT
-            System.out.println("\n--- 5. Delete Project (" + newProject.getId() + ") ---");
-            boolean deleted = projectDAO.deleteProject(newProject.getId());
-            System.out.println("Project deleted: " + (deleted ? "SUCCESS" : "FAILED"));
-            Project deletedCheck = projectDAO.getProjectById(newProject.getId());
-            System.out.println("Post-delete check (should be null): " + deletedCheck);
+    private static void viewHistory(Scanner scanner, BugDAO bugDAO, BugHistoryDAO historyDAO) {
+        int bugId = readPositiveId(scanner, "Bug ID: ");
+        if (bugDAO.getBugById(bugId) == null) {
+            System.out.println("Bug not found.");
+            return;
+        }
+        for (BugHistory event : historyDAO.getHistoryForBug(bugId)) {
+            System.out.printf("%s | %s | user %s | %s%n", event.getCreatedAt(), event.getAction(),
+                    event.getChangedBy(), event.getDetails());
         }
     }
 
-    private static void runOfflineDemo() {
-        System.out.println("\n------------------------------------------------------------------");
-        System.out.println("Running In-Memory Validation (Day 2 Models & Architecture):");
-        System.out.println("------------------------------------------------------------------");
-
-        // Validate 5-field User constructor and name alias
-        User demoUser = new User(10, "Developer Dave", "dave@bugtracker.com", "pass123", Role.DEVELOPER);
-        System.out.println("[OK] User Model created successfully:");
-        System.out.println("     - ID: " + demoUser.getId());
-        System.out.println("     - Name (getName): " + demoUser.getName());
-        System.out.println("     - Username (getUsername): " + demoUser.getUsername());
-        System.out.println("     - Email: " + demoUser.getEmail());
-        System.out.println("     - Role: " + demoUser.getRole());
-
-        // Validate 4-field Project constructor
-        Project demoProject = new Project(5, "Payment Gateway Integration", "Stripe & PayPal connector", demoUser.getId());
-        System.out.println("\n[OK] Project Model created successfully:");
-        System.out.println("     - ID: " + demoProject.getId());
-        System.out.println("     - Name: " + demoProject.getName());
-        System.out.println("     - Description: " + demoProject.getDescription());
-        System.out.println("     - Created By (User ID): " + demoProject.getCreatedBy());
-
-        System.out.println("\n[INFO] To execute live database CRUD tests against MySQL:");
-        System.out.println("  1. Ensure MySQL is running on port 3306.");
-        System.out.println("  2. Run 'database/schema.sql' in MySQL.");
-        System.out.println("  3. Set your password in 'src/main/resources/db.properties'.");
-        System.out.println("  4. Re-run: mvn compile exec:java");
+    private static int readPositiveId(Scanner scanner, String prompt) {
+        return Validation.requirePositiveId(readInt(scanner, prompt), "ID");
     }
 
-    private static void printFooter() {
-        System.out.println("\n==================================================================");
-        System.out.println("Day 2 Implementation Complete! (Ready for Day 3: Bug Management)  ");
-        System.out.println("==================================================================");
+    private static int readInt(Scanner scanner, String prompt) {
+        return parseInt(readLine(scanner, prompt).trim());
+    }
+
+    private static int parseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Enter a numeric ID or menu option.");
+        }
+    }
+
+    private static String readRequiredText(Scanner scanner, String prompt, String fieldName) {
+        return Validation.requireText(readLine(scanner, prompt), fieldName);
+    }
+
+    private static String readLine(Scanner scanner, String prompt) {
+        System.out.print(prompt);
+        return scanner.nextLine();
     }
 }

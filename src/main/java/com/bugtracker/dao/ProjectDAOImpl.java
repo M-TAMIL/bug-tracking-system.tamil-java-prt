@@ -1,8 +1,5 @@
 package com.bugtracker.dao;
 
-import com.bugtracker.model.Project;
-import com.bugtracker.util.DBConnection;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,6 +9,10 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.bugtracker.model.Project;
+import com.bugtracker.util.DBConnection;
+import com.bugtracker.util.Validation;
 
 /**
  * JDBC implementation of ProjectDAO for MySQL database operations.
@@ -31,15 +32,12 @@ public class ProjectDAOImpl implements ProjectDAO {
 
     @Override
     public boolean addProject(Project project) {
-        if (project == null) {
-            System.err.println("[ProjectDAO] Cannot insert null project.");
-            return false;
-        }
+        if (!isValidProject(project)) return false;
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(INSERT_PROJECT_SQL, Statement.RETURN_GENERATED_KEYS)) {
 
-            ps.setString(1, project.getName());
+            ps.setString(1, project.getName().trim());
             ps.setString(2, project.getDescription());
 
             if (project.getCreatedBy() != null) {
@@ -82,6 +80,7 @@ public class ProjectDAOImpl implements ProjectDAO {
 
     @Override
     public Project getProjectById(int id) {
+        if (id <= 0) return null;
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(SELECT_PROJECT_BY_ID_SQL)) {
 
@@ -99,15 +98,12 @@ public class ProjectDAOImpl implements ProjectDAO {
 
     @Override
     public boolean updateProject(Project project) {
-        if (project == null || project.getId() <= 0) {
-            System.err.println("[ProjectDAO] Invalid project object or ID for update.");
-            return false;
-        }
+        if (!isValidProject(project) || project.getId() <= 0) return false;
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(UPDATE_PROJECT_SQL)) {
 
-            ps.setString(1, project.getName());
+            ps.setString(1, project.getName().trim());
             ps.setString(2, project.getDescription());
 
             if (project.getCreatedBy() != null) {
@@ -127,6 +123,7 @@ public class ProjectDAOImpl implements ProjectDAO {
 
     @Override
     public boolean deleteProject(int id) {
+        if (id <= 0) return false;
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(DELETE_PROJECT_SQL)) {
 
@@ -147,5 +144,16 @@ public class ProjectDAOImpl implements ProjectDAO {
         Timestamp createdAt = rs.getTimestamp("created_at");
 
         return new Project(id, name, description, createdBy, createdAt);
+    }
+
+    private boolean isValidProject(Project project) {
+        if (project == null) return false;
+        try {
+            Validation.requireText(project.getName(), "Project name");
+            if (project.getCreatedBy() != null) Validation.requirePositiveId(project.getCreatedBy(), "Creator ID");
+            return true;
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
     }
 }

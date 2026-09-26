@@ -1,5 +1,7 @@
 package com.bugtracker.model;
 
+import java.util.Locale;
+
 /**
  * Severity indicates the impact and urgency of a bug.
  */
@@ -10,11 +12,9 @@ public enum Severity {
     CRITICAL;
 
     public static Severity fromString(String severityStr) {
-        if (severityStr == null) return MEDIUM;
-        try {
-            return Severity.valueOf(severityStr.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return MEDIUM;
+        if (severityStr == null || severityStr.isBlank()) {
+            throw new IllegalArgumentException("Severity must not be empty.");
         }
+        return Severity.valueOf(severityStr.trim().toUpperCase(Locale.ROOT));
     }
 }
