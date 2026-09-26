@@ -9,6 +9,7 @@ public class Bug {
     private int id;
     private String title;
     private String description;
+    private Priority priority;
     private Severity severity;
     private Status status;
     private int projectId;
@@ -24,8 +25,14 @@ public class Bug {
     // Constructor without ID, createdAt, updatedAt (for reporting a new bug)
     public Bug(String title, String description, Severity severity, Status status,
                int projectId, int reportedBy, Integer assignedTo) {
+        this(title, description, Priority.MEDIUM, severity, status, projectId, reportedBy, assignedTo);
+    }
+
+    public Bug(String title, String description, Priority priority, Severity severity, Status status,
+               int projectId, int reportedBy, Integer assignedTo) {
         this.title = title;
         this.description = description;
+        this.priority = priority;
         this.severity = severity;
         this.status = status;
         this.projectId = projectId;
@@ -37,9 +44,17 @@ public class Bug {
     public Bug(int id, String title, String description, Severity severity, Status status,
                int projectId, int reportedBy, Integer assignedTo,
                Timestamp createdAt, Timestamp updatedAt) {
+        this(id, title, description, Priority.MEDIUM, severity, status, projectId, reportedBy,
+            assignedTo, createdAt, updatedAt);
+        }
+
+        public Bug(int id, String title, String description, Priority priority, Severity severity, Status status,
+               int projectId, int reportedBy, Integer assignedTo,
+               Timestamp createdAt, Timestamp updatedAt) {
         this.id = id;
         this.title = title;
         this.description = description;
+        this.priority = priority;
         this.severity = severity;
         this.status = status;
         this.projectId = projectId;
@@ -54,8 +69,16 @@ public class Bug {
         return id;
     }
 
+    public int getBugId() {
+        return id;
+    }
+
     public void setId(int id) {
         this.id = id;
+    }
+
+    public void setBugId(int bugId) {
+        this.id = bugId;
     }
 
     public String getTitle() {
@@ -76,6 +99,14 @@ public class Bug {
 
     public Severity getSeverity() {
         return severity;
+    }
+
+    public Priority getPriority() {
+        return priority;
+    }
+
+    public void setPriority(Priority priority) {
+        this.priority = priority;
     }
 
     public void setSeverity(Severity severity) {
@@ -118,11 +149,23 @@ public class Bug {
         return createdAt;
     }
 
+    public Timestamp getCreatedDate() {
+        return createdAt;
+    }
+
     public void setCreatedAt(Timestamp createdAt) {
         this.createdAt = createdAt;
     }
 
+    public void setCreatedDate(Timestamp createdDate) {
+        this.createdAt = createdDate;
+    }
+
     public Timestamp getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public Timestamp getUpdatedDate() {
         return updatedAt;
     }
 
@@ -130,11 +173,16 @@ public class Bug {
         this.updatedAt = updatedAt;
     }
 
+    public void setUpdatedDate(Timestamp updatedDate) {
+        this.updatedAt = updatedDate;
+    }
+
     @Override
     public String toString() {
         return "Bug{" +
                 "id=" + id +
                 ", title='" + title + '\'' +
+                ", priority=" + priority +
                 ", severity=" + severity +
                 ", status=" + status +
                 ", projectId=" + projectId +

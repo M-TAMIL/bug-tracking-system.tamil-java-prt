@@ -16,7 +16,7 @@ public class DashboardDAOImpl implements DashboardDAO {
                 + "COALESCE(SUM(status = 'IN_PROGRESS'), 0) AS in_progress_bugs, "
                 + "COALESCE(SUM(status = 'RESOLVED'), 0) AS resolved_bugs, "
                 + "COALESCE(SUM(status = 'CLOSED'), 0) AS closed_bugs, "
-                + "COALESCE(SUM(severity = 'CRITICAL'), 0) AS critical_bugs FROM bugs";
+                + "COALESCE(SUM(severity = 'CRITICAL' OR priority = 'CRITICAL'), 0) AS critical_bugs FROM bugs";
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql);
              ResultSet results = statement.executeQuery()) {

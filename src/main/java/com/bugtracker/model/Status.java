@@ -9,7 +9,8 @@ public enum Status {
     OPEN,
     IN_PROGRESS,
     RESOLVED,
-    CLOSED;
+    CLOSED,
+    REOPENED;
 
     public static Status fromString(String statusStr) {
         if (statusStr == null || statusStr.isBlank()) {

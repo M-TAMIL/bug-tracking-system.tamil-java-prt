@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.bugtracker.model.Bug;
+import com.bugtracker.model.Priority;
 import com.bugtracker.model.Severity;
 import com.bugtracker.model.Status;
 import com.bugtracker.util.DBConnection;
@@ -17,13 +18,13 @@ import com.bugtracker.util.Validation;
 
 public class BugDAOImpl implements BugDAO {
     private static final String BUG_COLUMNS =
-            "id, title, description, severity, status, project_id, reported_by, assigned_to, created_at, updated_at";
+            "id, title, description, priority, severity, status, project_id, reported_by, assigned_to, created_at, updated_at";
 
     @Override
     public boolean addBug(Bug bug) {
         if (!isValidBug(bug)) return false;
-        String sql = "INSERT INTO bugs (title, description, severity, status, project_id, reported_by, assigned_to) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO bugs (title, description, priority, severity, status, project_id, reported_by, assigned_to) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection connection = DBConnection.getConnection()) {
             connection.setAutoCommit(false);
             try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -67,6 +68,34 @@ public class BugDAOImpl implements BugDAO {
     }
 
     @Override
+    public List<Bug> getBugsByStatus(Status status) {
+        if (status == null) return new ArrayList<>();
+        return getBugsByField("status", status.name());
+    }
+
+    @Override
+    public List<Bug> getBugsByPriority(Priority priority) {
+        if (priority == null) return new ArrayList<>();
+        return getBugsByField("priority", priority.name());
+    }
+
+    private List<Bug> getBugsByField(String field, String value) {
+        if (!"status".equals(field) && !"priority".equals(field)) return new ArrayList<>();
+        List<Bug> bugs = new ArrayList<>();
+        String sql = "SELECT " + BUG_COLUMNS + " FROM bugs WHERE " + field + " = ? ORDER BY id ASC";
+        try (Connection connection = DBConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, value);
+            try (ResultSet results = statement.executeQuery()) {
+                while (results.next()) bugs.add(mapBug(results));
+            }
+        } catch (SQLException exception) {
+            System.err.println("[BugDAO] Error filtering bugs by " + field + ": " + exception.getMessage());
+        }
+        return bugs;
+    }
+
+    @Override
     public Bug getBugById(int id) {
         if (id <= 0) return null;
         String sql = "SELECT " + BUG_COLUMNS + " FROM bugs WHERE id = ?";
@@ -86,8 +115,8 @@ public class BugDAOImpl implements BugDAO {
     public boolean updateBug(Bug bug, int changedBy) {
         if (!isValidBug(bug) || bug.getId() <= 0 || changedBy <= 0) return false;
         String selectSql = "SELECT " + BUG_COLUMNS + " FROM bugs WHERE id = ? FOR UPDATE";
-        String updateSql = "UPDATE bugs SET title = ?, description = ?, severity = ?, status = ?, project_id = ?, "
-                + "reported_by = ?, assigned_to = ? WHERE id = ?";
+        String updateSql = "UPDATE bugs SET title = ?, description = ?, priority = ?, severity = ?, status = ?, "
+            + "project_id = ?, reported_by = ?, assigned_to = ? WHERE id = ?";
         try (Connection connection = DBConnection.getConnection()) {
             connection.setAutoCommit(false);
             try {
@@ -104,7 +133,7 @@ public class BugDAOImpl implements BugDAO {
                 }
                 try (PreparedStatement update = connection.prepareStatement(updateSql)) {
                     bindBug(update, bug);
-                    update.setInt(8, bug.getId());
+                    update.setInt(9, bug.getId());
                     update.executeUpdate();
                 }
                 recordChanges(connection, previous, bug, changedBy);
@@ -134,7 +163,7 @@ public class BugDAOImpl implements BugDAO {
     }
 
     private boolean isValidBug(Bug bug) {
-        if (bug == null || bug.getSeverity() == null || bug.getStatus() == null) return false;
+        if (bug == null || bug.getPriority() == null || bug.getSeverity() == null || bug.getStatus() == null) return false;
         try {
             Validation.requireText(bug.getTitle(), "Title");
             Validation.requireText(bug.getDescription(), "Description");
@@ -150,12 +179,13 @@ public class BugDAOImpl implements BugDAO {
     private void bindBug(PreparedStatement statement, Bug bug) throws SQLException {
         statement.setString(1, bug.getTitle().trim());
         statement.setString(2, bug.getDescription().trim());
-        statement.setString(3, bug.getSeverity().name());
-        statement.setString(4, bug.getStatus().name());
-        statement.setInt(5, bug.getProjectId());
-        statement.setInt(6, bug.getReportedBy());
-        if (bug.getAssignedTo() == null) statement.setNull(7, Types.INTEGER);
-        else statement.setInt(7, bug.getAssignedTo());
+        statement.setString(3, bug.getPriority().name());
+        statement.setString(4, bug.getSeverity().name());
+        statement.setString(5, bug.getStatus().name());
+        statement.setInt(6, bug.getProjectId());
+        statement.setInt(7, bug.getReportedBy());
+        if (bug.getAssignedTo() == null) statement.setNull(8, Types.INTEGER);
+        else statement.setInt(8, bug.getAssignedTo());
     }
 
     private void recordChanges(Connection connection, Bug oldBug, Bug newBug, int changedBy) throws SQLException {
@@ -164,15 +194,20 @@ public class BugDAOImpl implements BugDAO {
                     oldBug.getStatus() + " -> " + newBug.getStatus());
             if (newBug.getStatus() == Status.RESOLVED) {
                 addHistory(connection, newBug.getId(), changedBy, "BUG_RESOLVED", "Bug resolved.");
-            } else if ((oldBug.getStatus() == Status.RESOLVED || oldBug.getStatus() == Status.CLOSED)
-                    && (newBug.getStatus() == Status.OPEN || newBug.getStatus() == Status.IN_PROGRESS)) {
+                } else if (newBug.getStatus() == Status.REOPENED
+                    || ((oldBug.getStatus() == Status.RESOLVED || oldBug.getStatus() == Status.CLOSED)
+                    && (newBug.getStatus() == Status.OPEN || newBug.getStatus() == Status.IN_PROGRESS))) {
                 addHistory(connection, newBug.getId(), changedBy, "BUG_REOPENED",
                         "Bug reopened as " + newBug.getStatus() + ".");
             }
         }
-        if (oldBug.getSeverity() != newBug.getSeverity()) {
+        if (oldBug.getPriority() != newBug.getPriority()) {
             addHistory(connection, newBug.getId(), changedBy, "PRIORITY_CHANGED",
-                    oldBug.getSeverity() + " -> " + newBug.getSeverity());
+                oldBug.getPriority() + " -> " + newBug.getPriority());
+        }
+        if (oldBug.getSeverity() != newBug.getSeverity()) {
+            addHistory(connection, newBug.getId(), changedBy, "SEVERITY_CHANGED",
+                oldBug.getSeverity() + " -> " + newBug.getSeverity());
         }
         if (!java.util.Objects.equals(oldBug.getAssignedTo(), newBug.getAssignedTo())) {
             addHistory(connection, newBug.getId(), changedBy, "DEVELOPER_ASSIGNED",
@@ -198,7 +233,8 @@ public class BugDAOImpl implements BugDAO {
         int assignedValue = results.getInt("assigned_to");
         Integer assignedTo = results.wasNull() ? null : assignedValue;
         return new Bug(results.getInt("id"), results.getString("title"), results.getString("description"),
-                Severity.valueOf(results.getString("severity")), Status.valueOf(results.getString("status")),
+            Priority.valueOf(results.getString("priority")), Severity.valueOf(results.getString("severity")),
+            Status.valueOf(results.getString("status")),
                 results.getInt("project_id"), results.getInt("reported_by"), assignedTo,
                 results.getTimestamp("created_at"), results.getTimestamp("updated_at"));
     }

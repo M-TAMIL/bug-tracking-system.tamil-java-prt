@@ -308,6 +308,52 @@ git push origin main
 
 ---
 
+## Day 3: Bug Management
+
+### Features
+
+- Bug model fields include ID (`bugId` alias), title, description, project/reporter/developer IDs, priority, severity, status, and created/updated dates.
+- JDBC operations support report, list, search by ID, edit details, assign a developer, change priority/severity/status, delete, and filter by status or priority.
+- `BugService` validates required values and referenced project/users; only users with the `DEVELOPER` role can be assigned.
+- Statuses include `OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`, and `REOPENED`.
+- The Day 3 submenu is available from the existing main menu. Day 4 comments, history, and dashboard options remain available.
+
+### SQL Changes
+
+For a new database, run the updated `database/schema.sql`. To upgrade a database that already has Day 4 tables, run `database/day3-migration.sql` once. It adds a separate priority column, expands the status enum to include `REOPENED`, and copies existing severity values into priority. The same fresh-install schema is also kept at `src/main/resources/schema.sql`.
+
+### Run and Test
+
+```bash
+mvn test
+mvn compile exec:java
+```
+
+The integration workflow test includes bug creation/read/update/delete, assignment and field changes, reopened status, and both filters. Set `BUGTRACKER_MYSQL_TESTS=true` to run it against the configured MySQL database.
+
+### Sample Output
+
+```text
+--- Bug Management ---
+1 Report  2 View all  3 Search by ID  4 Update details
+5 Assign developer  6 Change priority  7 Change severity
+8 Change status  9 Delete  10 Filter by status  11 Filter by priority  0 Back
+Bug option: 1
+Title: Checkout fails
+Priority (LOW/MEDIUM/HIGH/CRITICAL): CRITICAL
+Severity (LOW/MEDIUM/HIGH/CRITICAL): HIGH
+Bug reported: #3
+```
+
+### Day 3 GitHub Push
+
+```bash
+git status
+git add .
+git commit -m "Day 3 - Bug management"
+git push origin main
+```
+
 ## Day 4: Bug Workflows, Comments, Dashboard, and Testing
 
 ### Features
@@ -323,7 +369,7 @@ git push origin main
 
 For a new database, execute `database/schema.sql` in MySQL. This creates the `bug_history` audit table in addition to the existing users, projects, bugs, and comments tables. Then configure the username and password in `src/main/resources/db.properties`.
 
-For an existing Day 3 database, apply this migration once:
+For a database created before Day 4, apply this migration once:
 
 ```sql
 USE bug_tracking_db;

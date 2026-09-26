@@ -18,6 +18,7 @@ import com.bugtracker.model.BugHistory;
 import com.bugtracker.model.DashboardStats;
 import com.bugtracker.model.Severity;
 import com.bugtracker.model.Status;
+import com.bugtracker.ui.BugMenu;
 import com.bugtracker.util.DBConnection;
 import com.bugtracker.util.Validation;
 
@@ -41,7 +42,7 @@ public class Main {
     private static void printBanner() {
         System.out.println("==================================================================");
         System.out.println("                   BUG TRACKING SYSTEM                            ");
-        System.out.println("        Day 4: Bugs, Comments, History & Dashboard                ");
+        System.out.println("     Day 3+4: Bug Management, Comments & Dashboard                ");
         System.out.println("==================================================================");
         System.out.println("Technologies: Java 17+, Maven, MySQL, JDBC");
         System.out.println("Architecture: Layered (model, dao, service, util, ui)");
@@ -56,7 +57,7 @@ public class Main {
         while (running) {
             System.out.println("\n1 Dashboard  2 List bugs  3 Report bug  4 Update bug");
             System.out.println("5 Delete bug  6 Add comment  7 View comments  8 Delete comment");
-            System.out.println("9 Bug history  0 Exit");
+            System.out.println("9 Bug history  10 Bug management  0 Exit");
             try {
                 switch (readInt(scanner, "Select: ")) {
                     case 1 -> printDashboard(dashboardDAO.getStats());
@@ -68,8 +69,9 @@ public class Main {
                     case 7 -> viewComments(scanner, bugDAO, commentDAO);
                     case 8 -> deleteComment(scanner, commentDAO);
                     case 9 -> viewHistory(scanner, bugDAO, historyDAO);
+                    case 10 -> new BugMenu().run(scanner);
                     case 0 -> running = false;
-                    default -> System.out.println("Choose a menu option from 0 to 9.");
+                    default -> System.out.println("Choose a menu option from 0 to 10.");
                 }
             } catch (IllegalArgumentException exception) {
                 System.out.println("Invalid input: " + exception.getMessage());

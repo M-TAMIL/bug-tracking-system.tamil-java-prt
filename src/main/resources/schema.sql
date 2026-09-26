@@ -46,8 +46,9 @@ CREATE TABLE IF NOT EXISTS bugs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(150) NOT NULL,
     description TEXT NOT NULL,
+    priority ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL') NOT NULL DEFAULT 'MEDIUM',
     severity ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL') NOT NULL DEFAULT 'MEDIUM',
-    status ENUM('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED') NOT NULL DEFAULT 'OPEN',
+    status ENUM('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'REOPENED') NOT NULL DEFAULT 'OPEN',
     project_id INT NOT NULL,
     reported_by INT NOT NULL,
     assigned_to INT NULL,
@@ -79,7 +80,7 @@ CREATE TABLE IF NOT EXISTS bug_comments (
 
 -- ----------------------------------------------------------------------------
 -- Table: bug_history
--- Purpose: Audits lifecycle, assignment, and severity changes for bugs
+-- Purpose: Audits lifecycle, assignment, priority, and severity changes for bugs
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS bug_history (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -99,6 +100,7 @@ CREATE TABLE IF NOT EXISTS bug_history (
 -- ----------------------------------------------------------------------------
 CREATE INDEX idx_bugs_status ON bugs(status);
 CREATE INDEX idx_bugs_severity ON bugs(severity);
+CREATE INDEX idx_bugs_priority ON bugs(priority);
 CREATE INDEX idx_bugs_project_id ON bugs(project_id);
 CREATE INDEX idx_comments_bug_id ON bug_comments(bug_id);
 CREATE INDEX idx_history_bug_id ON bug_history(bug_id);
@@ -117,9 +119,9 @@ INSERT INTO projects (name, description, created_by) VALUES
 ('Hospital Management', 'Electronic medical records and patient appointment tracking', 1)
 ON DUPLICATE KEY UPDATE id=id;
 
-INSERT INTO bugs (title, description, severity, status, project_id, reported_by, assigned_to) VALUES
-('Checkout page 500 error on payment', 'Submitting credit card payment throws a 500 Internal Server Error.', 'CRITICAL', 'OPEN', 1, 3, 2),
-('Profile picture upload timeout', 'Uploading images larger than 2MB causes the request to hang indefinitely.', 'MEDIUM', 'IN_PROGRESS', 1, 3, 2)
+INSERT INTO bugs (title, description, priority, severity, status, project_id, reported_by, assigned_to) VALUES
+('Checkout page 500 error on payment', 'Submitting credit card payment throws a 500 Internal Server Error.', 'CRITICAL', 'CRITICAL', 'OPEN', 1, 3, 2),
+('Profile picture upload timeout', 'Uploading images larger than 2MB causes the request to hang indefinitely.', 'MEDIUM', 'MEDIUM', 'IN_PROGRESS', 1, 3, 2)
 ON DUPLICATE KEY UPDATE id=id;
 
 INSERT INTO bug_comments (bug_id, user_id, comment) VALUES

@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,11 +31,13 @@ import com.bugtracker.model.Bug;
 import com.bugtracker.model.BugComment;
 import com.bugtracker.model.BugHistory;
 import com.bugtracker.model.DashboardStats;
+import com.bugtracker.model.Priority;
 import com.bugtracker.model.Project;
 import com.bugtracker.model.Role;
 import com.bugtracker.model.Severity;
 import com.bugtracker.model.Status;
 import com.bugtracker.model.User;
+import com.bugtracker.service.BugService;
 
 @EnabledIfEnvironmentVariable(named = "BUGTRACKER_MYSQL_TESTS", matches = "true")
 class BugWorkflowIntegrationTest {
@@ -44,6 +47,7 @@ class BugWorkflowIntegrationTest {
     private final BugCommentDAO commentDAO = new BugCommentDAOImpl();
     private final BugHistoryDAO historyDAO = new BugHistoryDAOImpl();
     private final DashboardDAO dashboardDAO = new DashboardDAOImpl();
+    private final BugService bugService = new BugService(bugDAO, projectDAO, userDAO);
 
     private User owner;
     private User developer;
@@ -88,9 +92,17 @@ class BugWorkflowIntegrationTest {
         DashboardStats before = dashboardDAO.getStats();
         bug = new Bug("Checkout fails", "Submitting a valid order returns an error.", Severity.HIGH,
                 Status.OPEN, project.getId(), owner.getId(), null);
-        assertTrue(bugDAO.addBug(bug));
-        assertNotNull(bugDAO.getBugById(bug.getId()));
-        assertTrue(bugDAO.getAllBugs().stream().anyMatch(item -> item.getId() == bug.getId()));
+        bug = bugService.reportBug(bug);
+        int bugId = bug.getBugId();
+        assertNotNull(bugDAO.getBugById(bugId));
+        assertTrue(bugDAO.getAllBugs().stream().anyMatch(item -> item.getId() == bugId));
+        assertTrue(bugService.filterBugsByStatus(Status.OPEN).stream().anyMatch(item -> item.getId() == bugId));
+        assertThrows(IllegalArgumentException.class,
+            () -> bugService.assignBug(bugId, owner.getId(), owner.getId()));
+
+        bug.setTitle("Checkout fails after order submission");
+        bug = bugService.updateBug(bug, owner.getId());
+        assertEquals("Checkout fails after order submission", bugService.findBugById(bugId).getTitle());
 
         BugComment ownerComment = new BugComment(bug.getId(), owner.getId(), "I reproduced this issue.");
         BugComment developerComment = new BugComment(bug.getId(), developer.getId(), "I am investigating.");
@@ -103,17 +115,17 @@ class BugWorkflowIntegrationTest {
         assertTrue(commentDAO.deleteComment(developerCommentId, admin.getId()));
         assertTrue(commentDAO.deleteComment(ownerCommentId, owner.getId()));
 
-        bug = bugDAO.getBugById(bug.getId());
-        bug.setStatus(Status.IN_PROGRESS);
-        bug.setSeverity(Severity.CRITICAL);
-        bug.setAssignedTo(developer.getId());
-        assertTrue(bugDAO.updateBug(bug, developer.getId()));
-        bug = bugDAO.getBugById(bug.getId());
-        bug.setStatus(Status.RESOLVED);
-        assertTrue(bugDAO.updateBug(bug, developer.getId()));
-        bug = bugDAO.getBugById(bug.getId());
-        bug.setStatus(Status.IN_PROGRESS);
-        assertTrue(bugDAO.updateBug(bug, owner.getId()));
+        bug = bugService.changeStatus(bug.getId(), Status.IN_PROGRESS, developer.getId());
+        bug = bugService.changeSeverity(bug.getId(), Severity.CRITICAL, developer.getId());
+        bug = bugService.changePriority(bug.getId(), Priority.CRITICAL, developer.getId());
+        bug = bugService.assignBug(bug.getId(), developer.getId(), developer.getId());
+        assertTrue(bugService.filterBugsByPriority(Priority.CRITICAL).stream()
+            .anyMatch(item -> item.getId() == bugId));
+        bug = bugService.changeStatus(bug.getId(), Status.RESOLVED, developer.getId());
+        bug = bugService.changeStatus(bug.getId(), Status.REOPENED, owner.getId());
+        assertTrue(bugService.filterBugsByStatus(Status.REOPENED).stream()
+            .anyMatch(item -> item.getId() == bugId));
+        bug = bugService.changeStatus(bug.getId(), Status.IN_PROGRESS, owner.getId());
 
         List<BugHistory> history = historyDAO.getHistoryForBug(bug.getId());
         List<String> actions = history.stream().map(BugHistory::getAction).collect(Collectors.toList());
@@ -129,8 +141,7 @@ class BugWorkflowIntegrationTest {
         assertEquals(before.getCriticalBugs() + 1, after.getCriticalBugs());
         assertEquals(before.getInProgressBugs() + 1, after.getInProgressBugs());
 
-        int bugId = bug.getId();
-        assertTrue(bugDAO.deleteBug(bugId));
+        bugService.deleteBug(bugId);
         bug = null;
         assertNull(bugDAO.getBugById(bugId));
         assertTrue(commentDAO.getCommentsForBug(bugId).isEmpty());
